@@ -21,10 +21,10 @@ struct TreeNode {
     string timestamp;
     DataOfNode data;
     int node_number;
-    string node_id;
-    string parent_node_id;
-    vector <string> child_reference_node_id;
-    string gensis_node_id;
+    TreeNode *node_id;
+    TreeNode *parent_node_id;
+    vector <TreeNode *> child_reference_node_id;
+    TreeNode *gensis_node_id;
     string hash_value;
 };
 
@@ -45,13 +45,11 @@ MasterListNode * createMasterListNode(){
 }
 
 
-TreeNode * createTreeNode(bool isGensis, DataOfNode data){
+TreeNode * createTreeNode(DataOfNode data, TreeNode *parent = NULL){
     TreeNode *ptr = new TreeNode;           // create a tree node
     current_time = getCurrentTime();
     ptr -> timestamp = current_time;        // assign current time to the node
-    if(isGensis){
-        ptr -> parent_node_id = "NULL";
-    }
+    ptr -> parent_node_id = parent;
     ptr -> data = data;
     ptr -> node_number = global_node_number++;
     return ptr;
@@ -61,38 +59,62 @@ TreeNode * createTreeNode(bool isGensis, DataOfNode data){
 void createGensisNode(MasterListNode *master_list_head){
     MasterListNode *current_gensis_node = createMasterListNode();
     DataOfNode input_data;
-    cout << "Create Gensis Node # " << global_node_number << ":\n";
+    cout << "Create Gensis Node # " << global_node_number + 1 << ":\n";
     cout << "Enter Owner id, Owner Name and Value of the Node:\n";
     cin >> input_data.owner_id >> input_data.owner_name >> input_data.value;
-    TreeNode *input_node = createTreeNode(true, input_data);
+    TreeNode *input_node = createTreeNode(input_data);
+    input_node -> node_id = input_node;
+    input_node -> gensis_node_id = input_node;
     current_gensis_node -> gensis_node = input_node;
     while(master_list_head -> next != NULL)
         master_list_head = master_list_head -> next;
     master_list_head -> next = current_gensis_node;
+    cout << "Gensis Node created successfully!\n";
     return ;
 }
 
 TreeNode * findNode(MasterListNode *master_list_head, int parent_num){
-    while(master_list_head -> next){
-        if(master_list_head -> next && master_list_head -> next -> gensis_node -> node_number > parent_num)
-            master_list_head = master_list_head -> next;
-        else if(!master_list_head -> next){
-            return NULL;
-        } else {
-
+    master_list_head = master_list_head -> next;
+    while(master_list_head){
+        TreeNode *ptr = master_list_head->gensis_node;
+        vector <TreeNode *> children = ptr->child_reference_node_id;
+        for(int i = 0; i < children.size(); ++i){
+            if(parent_num == children[i]->node_number)
+                return children[i];
         }
+        master_list_head = master_list_head->next;
     }
+    return NULL;
 }
 
+
 void createSeetOfChildNodesOfAPrticularNode(MasterListNode *master_list_head){
-    int parent_num, num_of_children, value_of_parent;
+    int parent_num, num_of_children, value_of_parent, sum_of_children = 0;
     DataOfNode input_data;
     cout << "Enter the parent node number and number of children you want to create\n";
     cin >> parent_num >> num_of_children;
     TreeNode *parent = findNode(master_list_head, parent_num);
+    if(!parent){
+        cout << "No parent with given node found!\n";
+        return ;
+    }
+    vector <TreeNode *> children = parent->child_reference_node_id;
+    for(int i = 0; i < children.size(); ++i){
+        sum_of_children += children[i]->data.value;
+    }
     value_of_parent = parent -> data.value;
+    TreeNode *child;
     for(int i = 0; i < num_of_children; ++i){
-
+        cout << "Enter owner id, value and owner name for child # " << i+1 <<"\n";
+        cin >> input_data.owner_id >> input_data.value >> input_data.owner_name;
+        if(sum_of_children + input_data.value > value_of_parent){
+            cout << "sum of child values = " << sum_of_children << " and value of parent = " << value_of_parent <<
+            ". Aborting transaction as the value of children can not be greater than parent's value\n";
+            return ;
+        }
+        sum_of_children += input_data.value;
+        child = createTreeNode(input_data, parent);
+        parent->child_reference_node_id.push_back(child);
     }
 }
 
@@ -101,6 +123,7 @@ MasterListNode * init(){
     global_node_number = 0;
     return ptr;
 }
+
 int main() {
 	MasterListNode *master_list_head = init();
 	cout << "Head node created successfully!\n";                    // head node is just a dummy node. it's next contains address to first gensis node
